@@ -1,1 +1,177 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hastighetstestanlyse</title>
+    <!-- Last inn Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom spinner for loading state */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6; /* Tailwind blue-500 */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        /* Sett standard font til Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div id="app" class="max-w-4xl mx-auto bg-white shadow-xl rounded-xl p-6 md:p-10">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-gray-900 mb-2">Analyse av Internett-hastighet</h1>
+            <p class="text-gray-500">Kjør en speedtest og få en AI-analyse basert på din bruk.</p>
+        </header>
+
+        <!-- Input og knapp for testen -->
+        <div class="space-y-4 mb-8 p-4 bg-gray-50 rounded-lg border">
+            <label for="contextInput" class="block text-sm font-medium text-gray-700">
+                Hva bruker du internettet til? (Kontekst)
+            </label>
+            <input type="text" id="contextInput" placeholder="F.eks. 4K-streaming, online spill, hjemmekontor..." 
+                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+            
+            <button id="runTestButton" 
+                    type="button"
+                    class="w-full flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
+                    onclick="runSpeedTest()">
+                <span id="buttonText">Kjør hastighetstest</span>
+            </button>
+        </div>
+
+        <!-- Resultatområde (Loading, Error, Data) -->
+        <div id="resultsSection" class="mt-8">
+            <div id="loadingStatus" class="hidden text-center p-6 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
+                <div class="flex items-center justify-center space-x-3">
+                    <div class="spinner"></div>
+                    <span class="text-yellow-800 font-semibold" id="loadingText">Kjører testen, vennligst vent... (Dette kan ta opptil 30 sekunder.)</span>
+                </div>
+            </div>
+
+            <div id="errorMessage" class="hidden p-4 text-red-700 bg-red-100 rounded-lg border-l-4 border-red-500 font-medium">
+                Feil: <span id="errorDetails"></span>
+            </div>
+
+            <div id="dataDisplay" class="hidden space-y-8">
+                <!-- 1. Resultatpaneler -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Nedlasting -->
+                    <div class="p-5 bg-green-50 rounded-xl shadow-md text-center border border-green-200">
+                        <p class="text-sm font-medium text-gray-500">Nedlasting</p>
+                        <p id="downloadResult" class="text-2xl font-bold text-green-700 mt-1">...</p>
+                    </div>
+                    <!-- Opplasting -->
+                    <div class="p-5 bg-blue-50 rounded-xl shadow-md text-center border border-blue-200">
+                        <p class="text-sm font-medium text-gray-500">Opplasting</p>
+                        <p id="uploadResult" class="text-2xl font-bold text-blue-700 mt-1">...</p>
+                    </div>
+                    <!-- Ping -->
+                    <div class="p-5 bg-indigo-50 rounded-xl shadow-md text-center border border-indigo-200">
+                        <p class="text-sm font-medium text-gray-500">Ping</p>
+                        <p id="pingResult" class="text-2xl font-bold text-indigo-700 mt-1">...</p>
+                    </div>
+                </div>
+
+                <!-- 2. AI-analyse -->
+                <div class="p-6 bg-gray-50 rounded-xl shadow-inner border">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Gemini-analyse</h2>
+                    <div id="analysisResult" class="text-gray-700 space-y-3">
+                        <!-- AI-generert HTML fylles inn her -->
+                        <div class="text-center text-gray-400 italic">Venter på AI-rapport...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Footer -->
+    <footer class="mt-10 text-center text-sm text-gray-500">
+        <p>&copy; 2025 Alle rettigheter reservert. | Utviklet av Vladyslav Bieliaeiv</p>
+    </footer>
+
+    <script>
+        const button = document.getElementById('runTestButton');
+        const buttonText = document.getElementById('buttonText');
+        const loadingStatus = document.getElementById('loadingStatus');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorDetails = document.getElementById('errorDetails');
+        const dataDisplay = document.getElementById('dataDisplay');
+        const downloadResult = document.getElementById('downloadResult');
+        const uploadResult = document.getElementById('uploadResult');
+        const pingResult = document.getElementById('pingResult');
+        const analysisResult = document.getElementById('analysisResult');
+        const contextInput = document.getElementById('contextInput');
+
+        function toggleLoading(isLoading) {
+            button.disabled = isLoading;
+            loadingStatus.classList.toggle('hidden', !isLoading);
+            errorMessage.classList.add('hidden');
+            
+            if (isLoading) {
+                // Скрываем результаты ТОЛЬКО при старте загрузки
+                dataDisplay.classList.add('hidden');
+                
+                button.classList.add('opacity-75');
+                buttonText.innerHTML = 'Kjører test...';
+                analysisResult.innerHTML = '<div class="text-center text-gray-400 italic">Venter på AI-rapport...</div>';
+            } else {
+                button.classList.remove('opacity-75');
+                buttonText.innerHTML = 'Kjør hastighetstest';
+            }
+        }
+
+        async function runSpeedTest() {
+            toggleLoading(true);
+
+            try {
+                const context = contextInput.value || contextInput.placeholder;
+
+                const response = await fetch('/api/run-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ context: context })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Vis resultater
+                    const data = result.data;
+                    downloadResult.textContent = data.download;
+                    uploadResult.textContent = data.upload;
+                    pingResult.textContent = data.ping;
+
+                    // Sett inn AI-analyse (dette er ren HTML fra Gemini)
+                    analysisResult.innerHTML = result.analysis;
+                    
+                    dataDisplay.classList.remove('hidden'); // Показываем данные после успешного получения
+
+                } else {
+                    // Vis feilmelding fra serveren
+                    errorDetails.textContent = result.message || 'Ukjent feil.';
+                    errorMessage.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                // Håndter nettverksfeil
+                errorDetails.textContent = `Nettverksfeil: Klarte ikke å koble til serveren. (${error.message})`;
+                errorMessage.classList.remove('hidden');
+            } finally {
+                toggleLoading(false);
+            }
+        }
+    </script>
+</body>
+</html>
 
